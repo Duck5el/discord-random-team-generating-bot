@@ -1,0 +1,9 @@
+# Ignore Gradle project-specific cache directory
+.gradle
+
+# Ignore Gradle build output directory
+build
+
+# Ignore bin to get rid of the .class files
+bin
+

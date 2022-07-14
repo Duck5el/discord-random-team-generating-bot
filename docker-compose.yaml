@@ -1,0 +1,9 @@
+version: "3"
+services:
+    discord-bot:
+        build: .
+        volumes:
+          - ./matches:/matches:rw
+        environment:
+          DISCORD_BOT_TOKEN: "<your-bot-token>"
+        command: ["java", "-jar", "-DBotToken=$DISCORD_BOT_TOKEN", "/app.jar"]

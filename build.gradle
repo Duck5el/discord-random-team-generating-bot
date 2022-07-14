@@ -1,0 +1,27 @@
+plugins {
+    id 'java-library'
+    id 'com.github.johnrengelman.shadow' version '6.1.0'
+}
+
+jar{
+    manifest {
+        attributes 'Main-Class': 'DiscordTeamBot.Application'
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+
+dependencies {
+    api 'org.apache.commons:commons-math3:3.6.1'
+    implementation 'com.google.guava:guava:28.2-jre'
+    testImplementation 'junit:junit:4.12'
+
+	testImplementation group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.17.2'
+
+  	implementation("net.dv8tion:JDA:5.0.0-alpha.12") {
+        exclude module: 'opus-java'
+    }
+}
