@@ -3,7 +3,7 @@
 - [What is this repo for](#what-is-this-repo-for)
 - [Bot Slash-Commands](#bot-slash-commands)
 - [Getting started](#getting-started)
-- [Maximum permission requirements for the bot](#maximum-permission-requirements-for-the-bot)
+- [Minimum permission requirements for the bot](#minimum-permission-requirements-for-the-bot)
 
 ---
 ## [What is this repo for](#what-is-this-repo-for)
@@ -15,7 +15,7 @@ The "Discord Random Team Generating Bot" contains source code and a build file t
 |command|description|
 |---|---|
 |build-team|Build your teams random generated|
-|edit-team|Switch two playes betwwen teams|
+|edit-team|Switch two playes between teams|
 |win|Define the winner of a match|
 |cancel|Cancel a match|
 |stats|Get the stats of each member|
@@ -43,7 +43,7 @@ Running in code:
 5. Start your code.
 
 ---
-## [Maximum permission requirements for the bot](#maximum-permission-requirements-for-the-bot)
+## [Minimum permission requirements for the bot](#minimum-permission-requirements-for-the-bot)
 
 Permisson integer: `2211703888`
 ![permissions](./img/permissons.png)
