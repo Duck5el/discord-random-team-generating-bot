@@ -20,9 +20,9 @@ The "Discord Random Team Generating Bot" contains source code and a build file t
 |cancel|Cancel a match|
 |stats|Get the stats of each member|
 
-[commands](./img/commands.png)
-[example1](./img/example1.png)
-[example2](./img/example2.png)
+![commands](./img/commands.png)
+![example1](./img/example1.png)
+![example2](./img/example2.png)
 
 ---
 ## [Getting started](#getting-started)
@@ -46,4 +46,4 @@ Running in code:
 ## [Maximum permission requirements for the bot](#maximum-permission-requirements-for-the-bot)
 
 Permisson integer: `2211703888`
-[permissions](./img/permissons.png)
+![permissions](./img/permissons.png)
