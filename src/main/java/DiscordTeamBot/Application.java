@@ -49,6 +49,8 @@ public class Application {
 				.addOption(OptionType.INTEGER, "matchnumber", "The number of the match", true)
 				.addOption(OptionType.MENTIONABLE, "player-one", "Player one to switch with", true)
 				.addOption(OptionType.MENTIONABLE, "player-two", "Player two to switch with", true).complete();
+//		builder.upsertCommand("leave-team", "Leave the team you are currently in")
+//				.addOption(OptionType.INTEGER, "matchnumber", "The number of the match you want to leave", true).complete();
 	}
 
 	public void deleteSlashCommand(JDA builder) {

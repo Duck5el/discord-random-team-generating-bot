@@ -17,14 +17,16 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 
 public class CommandListener extends ListenerAdapter {
 
-	//Method for slash commands
-	//Triggers if an slash command occurs
+	public final String PATH = System.getProperty("SaveMatchesPath", "/matches/");
+
+	// Method for slash commands
+	// Triggers if an slash command occurs
 	@Override
 	public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
 		Member member = event.getMember();
 		Guild guild = event.getGuild();
 		String textChannelId = event.getChannel().getId();
-		String guildStatsPath = "/matches/" + guild.getId() + ".txt";
+		String guildStatsPath = PATH + guild.getId() + ".txt";
 
 		if (event.getName().equals("build-teams")) {
 			try {
@@ -47,63 +49,84 @@ public class CommandListener extends ListenerAdapter {
 		if (event.getName().equals("edit-team")) {
 			editTeam(event, guild, textChannelId);
 		}
+//		if (event.getName().equals("leave-team")) {
+//			leaveTeam(event, guild, textChannelId);
+//		}
 	}
 
-	//Method triggered by the command /edit-team
-	//Changes position of two players in different teams
+//	Method triggered by the command /leave-team
+//	Removes the user from the team that executed the command
+//	private void leaveTeam(SlashCommandInteractionEvent event, Guild guild, String textChannelId) {
+//		try {
+//			event.reply("Trying to leave teams...").complete();
+//			List<Member> members = new ArrayList<>();
+//
+//			String path = PATH + guild.getId() + "-" + event.getOption("matchnumber").getAsLong() + ".txt";
+//			String matchFile = new Reader().readFileAsString(path);
+//			
+//			
+//			
+//		} catch (Exception e) {
+//
+//		}
+//	}
+
+	// Method triggered by the command /edit-team
+	// Changes position of two players in different teams
 	private void editTeam(SlashCommandInteractionEvent event, Guild guild, String textChannelId) {
 		try {
 			event.reply("Editing teams...").complete();
 			List<Member> members = new ArrayList<>();
-			
+
 			members.add(event.getOption("player-one").getAsMember());
 			members.add(event.getOption("player-two").getAsMember());
-			
+
 			String channelIdOfPlayerOne = getVoiceChannelIdOfMember(guild, members, 0);
 			String channelIdOfPlayerTwo = getVoiceChannelIdOfMember(guild, members, 1);
-			
+
 			moveMember(guild, members, 0, guild.getVoiceChannelById(channelIdOfPlayerTwo), textChannelId);
 			moveMember(guild, members, 1, guild.getVoiceChannelById(channelIdOfPlayerOne), textChannelId);
-			
-			String path = "/matches/" + guild.getId() + "-" + event.getOption("matchnumber").getAsLong() + ".txt";
-			
+
+			String path = PATH + guild.getId() + "-" + event.getOption("matchnumber").getAsLong() + ".txt";
+
 			String matchFile = new Reader().readFileAsString(path);
-			
+
 			matchFile = matchFile.replace(members.get(0).getId(), "player2-placeholder");
 			matchFile = matchFile.replace(members.get(1).getId(), "player1-placeholder");
-			
+
 			matchFile = matchFile.replace("player2-placeholder", members.get(1).getId());
 			matchFile = matchFile.replace("player1-placeholder", members.get(0).getId());
-			
+
 			new Writer().writeToFile(path, matchFile);
-			
-			guild.getTextChannelById(textChannelId).sendMessage("Edited teams!").queue();			
+
+			guild.getTextChannelById(textChannelId).sendMessage("Edited teams!").queue();
 		} catch (Exception e) {
 			guild.getTextChannelById(textChannelId).sendMessage("`ERROR: " + e.getMessage() + "`").queue();
 		}
 	}
 
-	//Method returning the id of a voice channel a user is in while executing a command
+	// Method returning the id of a voice channel a user is in while executing a
+	// command
 	private String getVoiceChannelIdOfMember(Guild guild, List<Member> members, int i) {
 		AudioChannel audioChannel = members.get(i).getVoiceState().getChannel();
 		VoiceChannel voiceChannel = guild.getVoiceChannelById(audioChannel.getId());
 		return voiceChannel.getId();
 	}
 
-	//Method to cancel a match triggered by the command /cancel
-	//Cancels a match by match number
+	// Method to cancel a match triggered by the command /cancel
+	// Cancels a match by match number
 	private void cancelMatch(SlashCommandInteractionEvent event, Guild guild, String textChannelId) {
 		event.reply("Canceling match...").complete();
-		String path = "/matches/" + guild.getId() + "-" + event.getOption("matchnumber").getAsLong() + ".txt";
-		String voicecallPath = "/matches/vc-" + guild.getId() + "-" + event.getOption("matchnumber").getAsLong()
-				+ ".txt";
+		String path = PATH + guild.getId() + "-" + event.getOption("matchnumber").getAsLong() + ".txt";
+		String voicecallPath = PATH + "vc-" + guild.getId() + "-" + event.getOption("matchnumber").getAsLong() + ".txt";
 		new Reader().deleteFile(path);
 		guild.getTextChannelById(textChannelId).sendMessage("Canceled!").queue();
 		moveAllMembersBack(guild, voicecallPath, textChannelId);
 	}
 
-	//Method triggered by the command /stats
-	//Builds an embed that either creates a report of all guild members or one selected user
+	// Method triggered by the command /stats
+	// Builds an embed that either creates a report of all guild members or one
+	// selected user
 	private void buildStatReport(SlashCommandInteractionEvent event, Guild guild, String textChannelId,
 			String guildStatsPath) {
 		try {
@@ -114,7 +137,8 @@ public class CommandListener extends ListenerAdapter {
 			}
 
 			String[] members = new Reader().readFileAsString(guildStatsPath).split("\n");
-			EmbedBuilder embed = createEmbedWithDefaults("===== :trophy::trophy::trophy: Stats :trophy::trophy::trophy: =====");
+			EmbedBuilder embed = createEmbedWithDefaults(
+					"===== :trophy::trophy::trophy: Stats :trophy::trophy::trophy: =====");
 
 			List<String> users = new ArrayList<>();
 			List<String> wins = new ArrayList<>();
@@ -156,15 +180,15 @@ public class CommandListener extends ListenerAdapter {
 		}
 	}
 
-	//method triggered by the command /win
-	//Defines the winner and sums up the statistics
+	// method triggered by the command /win
+	// Defines the winner and sums up the statistics
 	private void calculateWinner(SlashCommandInteractionEvent event, Guild guild, String textChannelId,
 			String guildStatsPath) {
 		try {
 			long matchNumber = event.getOption("matchnumber").getAsLong();
 			int winnerteam = event.getOption("teamnumber").getAsInt();
-			String matchPath = "/matches/" + guild.getId() + "-" + matchNumber + ".txt";
-			String voicecallPath = "/matches/vc-" + guild.getId() + "-" + matchNumber + ".txt";
+			String matchPath = PATH + guild.getId() + "-" + matchNumber + ".txt";
+			String voicecallPath = PATH + "vc-" + guild.getId() + "-" + matchNumber + ".txt";
 
 			if (!new Reader().fileExists(matchPath)) {
 				event.reply("No match found under matchnumber: `" + matchNumber + "`").complete();
@@ -222,8 +246,9 @@ public class CommandListener extends ListenerAdapter {
 
 	}
 
-	//Method executed after a /cancel or /win
-	//Moves all the members back to the default voice channel as long as they are still draggable
+	// Method executed after a /cancel or /win
+	// Moves all the members back to the default voice channel as long as they are
+	// still draggable
 	private void moveAllMembersBack(Guild guild, String voicecallPath, String textChannelId) {
 		try {
 			String[] rows = new Reader().readFileAsString(voicecallPath).split("\n");
@@ -240,12 +265,14 @@ public class CommandListener extends ListenerAdapter {
 			deleteCreatedItems(guild, vcs, categoryId, textChannelId);
 			new Reader().deleteFile(voicecallPath);
 		} catch (Exception e) {
-			//guild.getTextChannelById(textChannelId).sendMessage("`ERROR: " + e.getMessage() + "`").queue();
+			// guild.getTextChannelById(textChannelId).sendMessage("`ERROR: " +
+			// e.getMessage() + "`").queue();
 		}
 	}
 
-	//Method triggered by the command /build-teams
-	//Creates the number of defined teams. Creates the Voice-Channels and drags the users into them.
+	// Method triggered by the command /build-teams
+	// Creates the number of defined teams. Creates the Voice-Channels and drags the
+	// users into them.
 	private void buildTeams(SlashCommandInteractionEvent event, Guild guild, String textChannelId,
 			VoiceChannel voiceChannel) {
 		try {
@@ -310,12 +337,14 @@ public class CommandListener extends ListenerAdapter {
 		}
 	}
 
-	//Creates a temporary file about the created voice channels and category and the information about 
-	//where to move the users after /cancel or /win (back to the default voice channel).
+	// Creates a temporary file about the created voice channels and category and
+	// the information about
+	// where to move the users after /cancel or /win (back to the default voice
+	// channel).
 	private void createVoicecallFile(Guild guild, List<List<String>> memberIds, List<String> createdVoiceChannels,
 			long matchNumber, String textChannelId, String originalVoiceCannelId, String categoryId) {
 		try {
-			String voicecallPath = "/matches/vc-" + guild.getId() + "-" + matchNumber + ".txt";
+			String voicecallPath = PATH + "vc-" + guild.getId() + "-" + matchNumber + ".txt";
 			String vcs = String.join(",", createdVoiceChannels);
 			vcs = vcs + "\n" + originalVoiceCannelId + "\n" + categoryId + "\n";
 
@@ -326,7 +355,7 @@ public class CommandListener extends ListenerAdapter {
 	}
 
 	private void createMatchFile(Guild guild, String textChannelId, long matchNumber, List<List<String>> memberIds) {
-		String path = "/matches/" + guild.getId() + "-" + matchNumber + ".txt";
+		String path = PATH + guild.getId() + "-" + matchNumber + ".txt";
 		String row = "";
 
 		for (List<String> teamMemberIds : memberIds) {
@@ -340,7 +369,7 @@ public class CommandListener extends ListenerAdapter {
 		}
 	}
 
-	//Method creates an embed displaying the team constellation
+	// Method creates an embed displaying the team constellation
 	private void createEmbed(Guild guild, String textChannelId, List<List<String>> memberIds, long matchNumber) {
 		try {
 			EmbedBuilder embed = createEmbedWithDefaults("=============== Teams ===============");
@@ -361,7 +390,8 @@ public class CommandListener extends ListenerAdapter {
 		}
 	}
 
-	//Method to move one member of a member list by index into a defined Voice-Channel by id
+	// Method to move one member of a member list by index into a defined
+	// Voice-Channel by id
 	private void moveMember(Guild guild, List<Member> members, int memberIndex, VoiceChannel teamVoiceChannel,
 			String textChannelId) {
 		try {
@@ -371,8 +401,9 @@ public class CommandListener extends ListenerAdapter {
 		}
 	}
 
-	//Deleted method for the voice-channel and category created after the /build-team command
-	//Is called by the /win and /cancel command
+	// Deleted method for the voice-channel and category created after the
+	// /build-team command
+	// Is called by the /win and /cancel command
 	private void deleteCreatedItems(Guild guild, String[] voiceChannels, String categoryId, String textChannelId) {
 		try {
 			for (String id : voiceChannels) {
@@ -384,7 +415,7 @@ public class CommandListener extends ListenerAdapter {
 		}
 	}
 
-	//Randomize method to shuffle the list of members
+	// Randomize method to shuffle the list of members
 	private List<Member> getShuffeledHumansInChannel(VoiceChannel channel) {
 		List<Member> members = new ArrayList<>();
 		for (Member m : channel.getMembers()) {
@@ -396,7 +427,7 @@ public class CommandListener extends ListenerAdapter {
 		return members;
 	}
 
-	//Method to generate the string for the created category
+	// Method to generate the string for the created category
 	private String createCategoryName(double memberPerTeam, int teams) {
 		String memberPerTeamString = memberPerTeam + "";
 		String name = "";
@@ -409,15 +440,15 @@ public class CommandListener extends ListenerAdapter {
 		}
 		return name;
 	}
-	
-	//Default embed configuration
+
+	// Default embed configuration
 	private EmbedBuilder createEmbedWithDefaults(String title) {
 		EmbedBuilder embed = new EmbedBuilder();
-		
+
 		embed.setTitle(title);
 		embed.setColor(Color.YELLOW);
 		embed.setFooter("Bot by: Duck#4303");
-		
+
 		return embed;
 	}
 
