@@ -39,7 +39,7 @@ Running in code:
 1. Create you your first bot on [discord-developer-portal](https://discord.com/developers/applications)
 2. Set up your bot and save your bot token since you are able to see it only one time at creation. If you haven't done that you can still reset the token and get a new one.
 3. Define a vm-argument for your bot token `-DBotToken=<your-bot-token>`
-4. Create a folder named /matches in your root directory (Might need rw permissions). I know this is dumm but I was to lazy so you can change the path for your own purposes if you wan't.
+4. Create a folder named /matches in your root directory (Might need rw permissions). Or create it elsewhere and use the vm-argument Linux: `-DSaveMatchesPath=/path/to/your/matches/` Windows: `-DSaveMatchesPath=c:\\path\\to\\your\\matches\\`
 5. Start your code.
 
 ---
