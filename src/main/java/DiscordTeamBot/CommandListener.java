@@ -267,6 +267,7 @@ public class CommandListener extends ListenerAdapter {
 		} catch (Exception e) {
 			// guild.getTextChannelById(textChannelId).sendMessage("`ERROR: " +
 			// e.getMessage() + "`").queue();
+			new Reader().deleteFile(voicecallPath);
 		}
 	}
 
@@ -285,41 +286,52 @@ public class CommandListener extends ListenerAdapter {
 			double memberPerTeamCeiling = Math.ceil(memberCount / (teams + 0.0));
 			double memberLeft = memberCount % teams;
 			long matchNumber = System.currentTimeMillis();
+			boolean createChannels = event.getOption("create-channels").getAsBoolean();
 
 			List<String> createdVoiceChannels = new ArrayList<>();
 			List<List<String>> memberIds = new ArrayList<>();
 
-			String categoryName = createCategoryName(memberPerTeamCeiling, teams);
-			Category category = guild.createCategory(categoryName).complete();
-			String categoryId = category.getId();
+			Category category = null;
+			String categoryId = "";
+
+			if (createChannels) {
+				String categoryName = createCategoryName(memberPerTeamCeiling, teams);
+				category = guild.createCategory(categoryName).complete();
+				categoryId = category.getId();
+			}
 
 			int memberIndex = 0;
 			for (int i = 0; i < teams; i++) {
 				List<String> teamMember = new ArrayList<>();
 				VoiceChannel teamVoiceChannel = null;
-				if (event.getOption("limit").getAsBoolean()) {
-					teamVoiceChannel = guild.createVoiceChannel("Team" + (i + 1), category)
-							.setUserlimit((int) memberPerTeamCeiling).complete();
-					createdVoiceChannels.add(teamVoiceChannel.getId());
-				} else {
-					teamVoiceChannel = guild.createVoiceChannel("Team" + (i + 1), category).complete();
-					createdVoiceChannels.add(teamVoiceChannel.getId());
+				if (createChannels) {
+					if (event.getOption("limit").getAsBoolean()) {
+						teamVoiceChannel = guild.createVoiceChannel("Team" + (i + 1), category)
+								.setUserlimit((int) memberPerTeamCeiling).complete();
+						createdVoiceChannels.add(teamVoiceChannel.getId());
+					} else {
+						teamVoiceChannel = guild.createVoiceChannel("Team" + (i + 1), category).complete();
+						createdVoiceChannels.add(teamVoiceChannel.getId());
+					}
 				}
 
 				if (memberLeft == 0) {
 					for (int j = 0; j < memberPerTeamFloor; j++) {
-						moveMember(guild, members, memberIndex, teamVoiceChannel, textChannelId);
+						if (createChannels)
+							moveMember(guild, members, memberIndex, teamVoiceChannel, textChannelId);
 						teamMember.add(members.get(memberIndex).getId());
 						memberIndex++;
 					}
 				} else {
 					for (int j = 0; j < memberPerTeamFloor; j++) {
-						moveMember(guild, members, memberIndex, teamVoiceChannel, textChannelId);
+						if (createChannels)
+							moveMember(guild, members, memberIndex, teamVoiceChannel, textChannelId);
 						teamMember.add(members.get(memberIndex).getId());
 						memberIndex++;
 					}
 					if (memberLeft != 0) {
-						moveMember(guild, members, memberIndex, teamVoiceChannel, textChannelId);
+						if (createChannels)
+							moveMember(guild, members, memberIndex, teamVoiceChannel, textChannelId);
 						teamMember.add(members.get(memberIndex).getId());
 						memberIndex++;
 						memberLeft--;
