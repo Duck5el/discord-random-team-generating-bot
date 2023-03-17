@@ -1,7 +1,7 @@
 version: "3"
 services:
     discord-bot:
-        build: .
+        image: ducksel/discord-team-generator-bot:latest
         volumes:
           - ./matches:/matches:rw
         environment:
