@@ -5,5 +5,5 @@ services:
         volumes:
           - ./matches:/matches:rw
         env_file:
-          - .env
+          - docker-env
         command: ["java", "-jar", "-DBotToken=$DISCORD_BOT_TOKEN", "/app.jar"]
