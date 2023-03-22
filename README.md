@@ -31,7 +31,7 @@ The "Discord Random Team Generating Bot" contains source code and a build file t
 Running in docker:
 1. Create you your first bot on [discord-developer-portal](https://discord.com/developers/applications)
 2. Set up your bot and save your bot token since you are able to see it only one time at creation. If you haven't done that you can still reset the token and get a new one.
-3. Open the `docker-env` file and add your bot token to the environment-variable 
+3. Open the `.env` file and add your bot token to the environment-variable 
 4. Now you are pretty much done and you can start your application. You can do that by starting the docker container `$ docker-compose up`.
 
 ---
