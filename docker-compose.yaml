@@ -4,6 +4,6 @@ services:
         image: ducksel/discord-team-generator-bot:latest
         volumes:
           - ./matches:/matches:rw
-        environment:
-          DISCORD_BOT_TOKEN: "<your-bot-token>"
+        env_file:
+          - .env
         command: ["java", "-jar", "-DBotToken=$DISCORD_BOT_TOKEN", "/app.jar"]
