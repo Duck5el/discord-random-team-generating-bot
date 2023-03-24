@@ -6,4 +6,4 @@ services:
           - ./matches:/matches:rw
         env_file:
           - .env
-        command: ["java", "-jar", "-DBotToken=$DISCORD_BOT_TOKEN", "/app.jar"]
+        command: ["java", "-jar", "-DBotToken=$DISCORD_BOT_TOKEN", "-DMembersPerPage=$MEMBERS_PER_PAGE", "/app.jar"]
