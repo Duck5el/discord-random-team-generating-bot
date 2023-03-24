@@ -10,66 +10,141 @@ import net.dv8tion.jda.api.entities.AudioChannel;
 import net.dv8tion.jda.api.entities.Category;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
+import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.MessageEmbed.Field;
+import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.entities.VoiceChannel;
+import net.dv8tion.jda.api.events.interaction.ModalInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.interactions.components.ActionRow;
+import net.dv8tion.jda.api.interactions.components.Modal;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.interactions.components.text.TextInput;
+import net.dv8tion.jda.api.interactions.components.text.TextInputStyle;
 
 public class CommandListener extends ListenerAdapter {
 
-	public final String PATH = System.getProperty("SaveMatchesPath", "/matches/");
+	private final double MEMBERS_PER_PAGE = Double.parseDouble(System.getProperty("MembersPerPage", "20"));
+	private final String PATH = System.getProperty("SaveMatchesPath", "/matches/");
+
+	private SlashCommandInteractionEvent slashEvent;
+	private ButtonInteractionEvent buttonEvent;
+	private ModalInteractionEvent modalEvent;
+	private TextChannel eventTextChannel;
+	private Member member;
+	private Guild guild;
+	private String textChannelId;
+	private String guildStatsPath;
 
 	// Method for slash commands
 	// Triggers if an slash command occurs
 	@Override
 	public void onSlashCommandInteraction(SlashCommandInteractionEvent event) {
-		Member member = event.getMember();
-		Guild guild = event.getGuild();
-		String textChannelId = event.getChannel().getId();
-		String guildStatsPath = PATH + guild.getId() + ".txt";
+		this.slashEvent = event;
+		this.member = slashEvent.getMember();
+		this.guild = slashEvent.getGuild();
+		this.textChannelId = slashEvent.getChannel().getId();
+		this.guildStatsPath = PATH + guild.getId() + ".txt";
 
-		if (event.getName().equals("build-teams")) {
+		if (slashEvent.getName().equals("build-teams")) {
 			try {
 				AudioChannel audioChannel = member.getVoiceState().getChannel();
 				VoiceChannel voiceChannel = guild.getVoiceChannelById(audioChannel.getId());
-				buildTeams(event, guild, textChannelId, voiceChannel);
+				buildTeams(voiceChannel);
 			} catch (Exception e) {
-				event.reply("`Error: You need to join a voice channel first!`").complete();
+				slashEvent.reply("`Error: You need to join a voice channel first!`").complete();
 			}
 		}
-		if (event.getName().equals("win")) {
-			calculateWinner(event, guild, textChannelId, guildStatsPath);
+		if (slashEvent.getName().equals("stats")) {
+			buildStatReport();
 		}
-		if (event.getName().equals("cancel")) {
-			cancelMatch(event, guild, textChannelId);
+		if (slashEvent.getName().equals("edit-team")) {
+			editTeam(slashEvent, guild, textChannelId);
 		}
-		if (event.getName().equals("stats")) {
-			buildStatReport(event, guild, textChannelId, guildStatsPath);
-		}
-		if (event.getName().equals("edit-team")) {
-			editTeam(event, guild, textChannelId);
-		}
-//		if (event.getName().equals("leave-team")) {
-//			leaveTeam(event, guild, textChannelId);
-//		}
 	}
 
-//	Method triggered by the command /leave-team
-//	Removes the user from the team that executed the command
-//	private void leaveTeam(SlashCommandInteractionEvent event, Guild guild, String textChannelId) {
-//		try {
-//			event.reply("Trying to leave teams...").complete();
-//			List<Member> members = new ArrayList<>();
-//
-//			String path = PATH + guild.getId() + "-" + event.getOption("matchnumber").getAsLong() + ".txt";
-//			String matchFile = new Reader().readFileAsString(path);
-//			
-//			
-//			
-//		} catch (Exception e) {
-//
-//		}
-//	}
+	@Override
+	public void onButtonInteraction(ButtonInteractionEvent event) {
+		this.buttonEvent = event;
+		this.member = buttonEvent.getMember();
+		this.guild = buttonEvent.getGuild();
+		this.textChannelId = buttonEvent.getChannel().getId();
+		this.guildStatsPath = PATH + guild.getId() + ".txt";
+		this.eventTextChannel = buttonEvent.getChannel().asTextChannel();
+
+		if (buttonEvent.getComponentId().equals("previouspage")) {
+			buttonEvent.reply("Going to previous...").setEphemeral(false).complete().deleteOriginal().complete();
+			applyPagination(-1);
+		}
+		if (buttonEvent.getComponentId().equals("nextpage")) {
+			buttonEvent.reply("Going to next...").setEphemeral(false).complete().deleteOriginal().complete();
+			applyPagination(1);
+		}
+		if (buttonEvent.getComponentId().equals("cancel")) {
+			buttonEvent.reply("Canceling ...").complete();
+			buttonCancelMatch();
+		}
+		if (buttonEvent.getComponentId().equals("winner")) {
+			TextInput teamnumberInput = TextInput.create("teamnumber", "Team Number", TextInputStyle.SHORT)
+					.setPlaceholder("Team Number").setId("teamnumber").setLabel("Team Number").setMinLength(0)
+					.setMaxLength(5).setRequired(true).build();
+			Modal modal = Modal.create("winnerPopup", "Define the winner").addActionRows(ActionRow.of(teamnumberInput))
+					.build();
+			buttonEvent.replyModal(modal).complete();
+		}
+
+	}
+
+	@Override
+	public void onModalInteraction(ModalInteractionEvent event) {
+		this.modalEvent = event;
+		this.member = modalEvent.getMember();
+		this.guild = modalEvent.getGuild();
+		this.textChannelId = modalEvent.getChannel().getId();
+		this.guildStatsPath = PATH + guild.getId() + ".txt";
+		this.eventTextChannel = modalEvent.getChannel().asTextChannel();
+
+		if (modalEvent.getModalId().equals("winnerPopup")) {
+			buttonCalculateWinner();
+		}
+	}
+
+	private void applyPagination(int i) {
+		try {
+			int destinationPage = 0;
+			MessageEmbed oldEmbed = buttonEvent.getMessage().getEmbeds().get(0);
+			Integer pageNumber = Integer.parseInt(oldEmbed.getFooter().getText().replace("Page: ", ""));
+
+			String[] rows = new Reader().readFileAsString(guildStatsPath).split("\n");
+
+			int availablePages = (int) Math.ceil((0.0d + rows.length) / MEMBERS_PER_PAGE);
+
+			if (pageNumber == 1 && i == -1)
+				destinationPage = availablePages;
+			else if (pageNumber == availablePages && i == 1)
+				destinationPage = 1;
+			else
+				destinationPage = pageNumber + i;
+
+			EmbedBuilder newEmbed = editEmbed(destinationPage);
+			buttonEvent.getMessage().editMessageEmbeds(newEmbed.build()).complete();
+		} catch (Exception e) {
+			eventTextChannel.sendMessage("ERROR: `" + e.getMessage() + "`");
+		}
+	}
+
+	private EmbedBuilder editEmbed(int destinationPage) {
+		try {
+			String[] members = new Reader().readFileAsString(guildStatsPath).split("\n");
+			EmbedBuilder embed = getEmebed(null, members, destinationPage);
+			return embed;
+		} catch (Exception e) {
+			return null;
+		}
+
+	}
 
 	// Method triggered by the command /edit-team
 	// Changes position of two players in different teams
@@ -115,10 +190,14 @@ public class CommandListener extends ListenerAdapter {
 
 	// Method to cancel a match triggered by the command /cancel
 	// Cancels a match by match number
-	private void cancelMatch(SlashCommandInteractionEvent event, Guild guild, String textChannelId) {
-		event.reply("Canceling match...").complete();
-		String path = PATH + guild.getId() + "-" + event.getOption("matchnumber").getAsLong() + ".txt";
-		String voicecallPath = PATH + "vc-" + guild.getId() + "-" + event.getOption("matchnumber").getAsLong() + ".txt";
+
+	private void buttonCancelMatch() {
+		MessageEmbed oldEmbed = buttonEvent.getMessage().getEmbeds().get(0);
+		String matchNumber = oldEmbed.getDescription().replace("Match number: ", "").replace("`", "").replaceAll("\n.*",
+				"");
+		String path = PATH + guild.getId() + "-" + matchNumber + ".txt";
+		String voicecallPath = PATH + "vc-" + guild.getId() + "-" + matchNumber + ".txt";
+
 		new Reader().deleteFile(path);
 		guild.getTextChannelById(textChannelId).sendMessage("Canceled!").queue();
 		moveAllMembersBack(guild, voicecallPath, textChannelId);
@@ -127,123 +206,158 @@ public class CommandListener extends ListenerAdapter {
 	// Method triggered by the command /stats
 	// Builds an embed that either creates a report of all guild members or one
 	// selected user
-	private void buildStatReport(SlashCommandInteractionEvent event, Guild guild, String textChannelId,
-			String guildStatsPath) {
+	private void buildStatReport() {
 		try {
-			event.reply("Building report...").complete();
+			slashEvent.reply("Building report...").complete();
 			Member mentionedMember = null;
-			if (event.getOption("member") != null) {
-				mentionedMember = event.getOption("member").getAsMember();
+			if (slashEvent.getOption("member") != null) {
+				mentionedMember = slashEvent.getOption("member").getAsMember();
 			}
 
 			String[] members = new Reader().readFileAsString(guildStatsPath).split("\n");
-			EmbedBuilder embed = createEmbedWithDefaults(
-					"===== :trophy::trophy::trophy: Stats :trophy::trophy::trophy: =====");
 
-			List<String> users = new ArrayList<>();
-			List<String> wins = new ArrayList<>();
-			List<String> loses = new ArrayList<>();
-			List<Member> allGuildMembers = guild.getMembers();
+			Button buttonPrevious = Button.primary("previouspage", "Previous Page");
+			Button buttonNext = Button.primary("nextpage", "Next Page");
+			EmbedBuilder embed = getEmebed(mentionedMember, members, 1);
 
-			for (String member : members) {
-				String[] memberStats = member.split(",");
-				if (mentionedMember != null) {
-					if (mentionedMember.getId().equals(memberStats[0])) {
-						users.add(mentionedMember.getUser().getName());
-						wins.add(memberStats[1]);
-						loses.add(memberStats[2]);
-					}
-				} else {
-					try {
-						for (Member guildMember : allGuildMembers) {
-							if (guildMember.getId().equals(memberStats[0])) {
-								users.add(guildMember.getUser().getName());
-								wins.add(memberStats[1]);
-								loses.add(memberStats[2]);
-							}
-						}
-					} catch (Exception e) {
-					}
-				}
-			}
-			Field user = new Field("User", String.join("\n", users), true);
-			Field win = new Field("Wins", String.join("\n", wins), true);
-			Field loss = new Field("Loses", String.join("\n", loses), true);
-
-			embed.addField(user);
-			embed.addField(win);
-			embed.addField(loss);
-
-			guild.getTextChannelById(textChannelId).sendMessageEmbeds(embed.build()).queue();
+			guild.getTextChannelById(textChannelId).sendMessageEmbeds(embed.build())
+					.addActionRow(buttonPrevious, buttonNext).queue();
 		} catch (Exception e) {
 			guild.getTextChannelById(textChannelId).sendMessage("`ERROR: " + e.getMessage() + "`").queue();
 		}
 	}
 
+	private EmbedBuilder getEmebed(Member mentionedMember, String[] members, int page) {
+		EmbedBuilder embed = createEmbedWithDefaults(
+				"===== :trophy::trophy::trophy: Stats :trophy::trophy::trophy: =====");
+
+		List<String> users = new ArrayList<>();
+		List<String> wins = new ArrayList<>();
+		List<String> loses = new ArrayList<>();
+		List<Member> allGuildMembers = guild.getMembers();
+
+		int membersOnPage = 0;
+		double ignoreMembers = (page - 1) * MEMBERS_PER_PAGE;
+		for (int i = 0; i < members.length; i++) {
+			String[] memberStats = members[i].split(",");
+			String percentage = " (" + Math.round(Double.parseDouble(memberStats[1])
+					/ (Double.parseDouble(memberStats[1]) + Double.parseDouble(memberStats[2])) * 100) + "%)";
+			if (mentionedMember != null) {
+				if (mentionedMember.getId().equals(memberStats[0])) {
+					users.add(mentionedMember.getUser().getName() + percentage);
+					wins.add(memberStats[1]);
+					loses.add(memberStats[2]);
+				}
+			} else {
+				try {
+					for (int j = 0; j < allGuildMembers.size(); j++) {
+						if (allGuildMembers.get(j).getId().equals(memberStats[0]) && membersOnPage < MEMBERS_PER_PAGE) {
+							if (ignoreMembers > 0) {
+								ignoreMembers--;
+							} else {
+								membersOnPage++;
+								users.add(allGuildMembers.get(j).getUser().getName() + percentage);
+								wins.add(memberStats[1]);
+								loses.add(memberStats[2]);
+							}
+						}
+					}
+				} catch (Exception e) {
+				}
+			}
+		}
+		Field user = new Field("User", String.join("\n", users), true);
+		Field win = new Field("Wins", String.join("\n", wins), true);
+		Field loss = new Field("Loses", String.join("\n", loses), true);
+
+		embed.addField(user);
+		embed.addField(win);
+		embed.addField(loss);
+		embed.setFooter("Page: " + page);
+		return embed;
+	}
+
 	// method triggered by the command /win
 	// Defines the winner and sums up the statistics
-	private void calculateWinner(SlashCommandInteractionEvent event, Guild guild, String textChannelId,
-			String guildStatsPath) {
+
+	private void buttonCalculateWinner() {
 		try {
-			long matchNumber = event.getOption("matchnumber").getAsLong();
-			int winnerteam = event.getOption("teamnumber").getAsInt();
+
+			MessageEmbed oldEmbed = modalEvent.getMessage().getEmbeds().get(0);
+			String matchNumber = oldEmbed.getDescription().replace("Match number: ", "").replace("`", "")
+					.replaceAll("\nTotal teams:.*", "");
+			int maxTeams = Integer.parseInt(oldEmbed.getDescription().replaceAll(".*\nTotal teams: ", ""));
+
+			modalEvent.getValue("teamnumber").getAsString();
+
+			int winnerteam = Integer.parseInt(modalEvent.getValue("teamnumber").getAsString());
 			String matchPath = PATH + guild.getId() + "-" + matchNumber + ".txt";
 			String voicecallPath = PATH + "vc-" + guild.getId() + "-" + matchNumber + ".txt";
 
 			if (!new Reader().fileExists(matchPath)) {
-				event.reply("No match found under matchnumber: `" + matchNumber + "`").complete();
+				modalEvent.reply("No match found for matchnumber: `" + matchNumber + "`").complete();
+				return;
+			}
+			if (maxTeams < winnerteam && winnerteam > 0) {
+				modalEvent.reply("`ERROR: The team number is higher than the total amount of teams!`").complete();
 				return;
 			}
 
-			event.reply("Creating statistics...").complete();
+			modalEvent.reply("Creating statistics...").complete();
+
 			if (!new Reader().fileExists(guildStatsPath)) {
 				new Writer().writeToFile(guildStatsPath, "");
 			}
 
-			String[] memberIds = new Reader().readFileAsString(matchPath).split("\n");
-			int index = 1;
-			for (String teams : memberIds) {
-				if (!teams.equals("")) {
-					String[] teamMemberIds = teams.split(",");
-					int win = 0;
-					int loss = 0;
-					if (index == winnerteam) {
-						win = 1;
-					} else {
-						loss = 1;
-					}
-					for (String memberId : teamMemberIds) {
-						boolean found = false;
-						String newEntry = "";
-						String[] guildMemberStats = new Reader().readFileAsString(guildStatsPath).split("\n");
-						for (String memberStats : guildMemberStats) {
-							if (!memberStats.equals("")) {
-								if (memberStats.startsWith(memberId)) {
-									found = true;
-									String[] stats = memberStats.split(",");
-									int memberWins = Integer.parseInt(stats[1]) + win;
-									int memberLoss = Integer.parseInt(stats[2]) + loss;
-									newEntry = newEntry + memberId + "," + memberWins + "," + memberLoss + "\n";
-								} else {
-									newEntry = newEntry + memberStats + "\n";
-								}
-							}
-						}
-						if (!found) {
-							newEntry = newEntry + memberId + "," + win + "," + loss + "\n";
-						}
-						new Writer().writeToFile(guildStatsPath, newEntry.replace("\n\n", "\n"));
-					}
-				}
-				index++;
-			}
-			guild.getTextChannelById(textChannelId).sendMessage("Saved statistics!").queue();
-			moveAllMembersBack(guild, voicecallPath, textChannelId);
-			new Reader().deleteFile(matchPath);
+			manageWinner(winnerteam, matchPath, voicecallPath);
+
 		} catch (Exception e) {
 			guild.getTextChannelById(textChannelId).sendMessage("`ERROR: " + e.getMessage() + "`").queue();
 		}
 
+	}
+
+	private void manageWinner(int winnerteam, String matchPath, String voicecallPath) throws Exception {
+		String[] memberIds = new Reader().readFileAsString(matchPath).split("\n");
+		int index = 1;
+		for (String teams : memberIds) {
+			if (!teams.equals("")) {
+				String[] teamMemberIds = teams.split(",");
+				int win = 0;
+				int loss = 0;
+				if (index == winnerteam) {
+					win = 1;
+				} else {
+					loss = 1;
+				}
+				for (String memberId : teamMemberIds) {
+					boolean found = false;
+					String newEntry = "";
+					String[] guildMemberStats = new Reader().readFileAsString(guildStatsPath).split("\n");
+					for (String memberStats : guildMemberStats) {
+						if (!memberStats.equals("")) {
+							if (memberStats.startsWith(memberId)) {
+								found = true;
+								String[] stats = memberStats.split(",");
+								int memberWins = Integer.parseInt(stats[1]) + win;
+								int memberLoss = Integer.parseInt(stats[2]) + loss;
+								newEntry = newEntry + memberId + "," + memberWins + "," + memberLoss + "\n";
+							} else {
+								newEntry = newEntry + memberStats + "\n";
+							}
+						}
+					}
+					if (!found) {
+						newEntry = newEntry + memberId + "," + win + "," + loss + "\n";
+					}
+					new Writer().writeToFile(guildStatsPath, newEntry.replace("\n\n", "\n"));
+				}
+			}
+			index++;
+		}
+		guild.getTextChannelById(textChannelId).sendMessage("Saved statistics!").queue();
+		moveAllMembersBack(guild, voicecallPath, textChannelId);
+		new Reader().deleteFile(matchPath);
 	}
 
 	// Method executed after a /cancel or /win
@@ -274,19 +388,18 @@ public class CommandListener extends ListenerAdapter {
 	// Method triggered by the command /build-teams
 	// Creates the number of defined teams. Creates the Voice-Channels and drags the
 	// users into them.
-	private void buildTeams(SlashCommandInteractionEvent event, Guild guild, String textChannelId,
-			VoiceChannel voiceChannel) {
+	private void buildTeams(VoiceChannel voiceChannel) {
 		try {
-			event.reply("Creating Teams for Members!").complete();
+			slashEvent.reply("Creating Teams for Members!").complete();
 			String originalVoiceCannelId = voiceChannel.getId();
 			List<Member> members = getShuffeledHumansInChannel(voiceChannel);
-			int teams = event.getOption("teams").getAsInt();
+			int teams = slashEvent.getOption("teams").getAsInt();
 			int memberCount = members.size();
 			double memberPerTeamFloor = Math.floor(memberCount / teams);
 			double memberPerTeamCeiling = Math.ceil(memberCount / (teams + 0.0));
 			double memberLeft = memberCount % teams;
 			long matchNumber = System.currentTimeMillis();
-			boolean createChannels = event.getOption("create-channels").getAsBoolean();
+			boolean createChannels = slashEvent.getOption("create-channels").getAsBoolean();
 
 			List<String> createdVoiceChannels = new ArrayList<>();
 			List<List<String>> memberIds = new ArrayList<>();
@@ -305,7 +418,7 @@ public class CommandListener extends ListenerAdapter {
 				List<String> teamMember = new ArrayList<>();
 				VoiceChannel teamVoiceChannel = null;
 				if (createChannels) {
-					if (event.getOption("limit").getAsBoolean()) {
+					if (slashEvent.getOption("limit").getAsBoolean()) {
 						teamVoiceChannel = guild.createVoiceChannel("Team" + (i + 1), category)
 								.setUserlimit((int) memberPerTeamCeiling).complete();
 						createdVoiceChannels.add(teamVoiceChannel.getId());
@@ -385,7 +498,7 @@ public class CommandListener extends ListenerAdapter {
 	private void createEmbed(Guild guild, String textChannelId, List<List<String>> memberIds, long matchNumber) {
 		try {
 			EmbedBuilder embed = createEmbedWithDefaults("=============== Teams ===============");
-			embed.setDescription("Match number: `" + matchNumber + "`");
+			embed.setDescription("Match number: `" + matchNumber + "`\nTotal teams: " + memberIds.size());
 			int endl = 1;
 			for (List<String> teamMember : memberIds) {
 				List<String> names = new ArrayList<>();
@@ -396,7 +509,10 @@ public class CommandListener extends ListenerAdapter {
 				embed.addField(team);
 				endl++;
 			}
-			guild.getTextChannelById(textChannelId).sendMessageEmbeds(embed.build()).queue();
+			Button buttonWinner = Button.primary("winner", "Define winner");
+			Button buttonCancel = Button.primary("cancel", "Cancel match");
+			guild.getTextChannelById(textChannelId).sendMessageEmbeds(embed.build())
+					.addActionRow(buttonWinner, buttonCancel).queue();
 		} catch (Exception e) {
 			guild.getTextChannelById(textChannelId).sendMessage("`ERROR: " + e.getMessage() + "`").queue();
 		}
@@ -459,7 +575,7 @@ public class CommandListener extends ListenerAdapter {
 
 		embed.setTitle(title);
 		embed.setColor(Color.YELLOW);
-		embed.setFooter("Bot by: Duck#4303");
+		embed.setAuthor("Bot by: Duck#4303");
 
 		return embed;
 	}

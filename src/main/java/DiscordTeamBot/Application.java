@@ -37,21 +37,15 @@ public class Application {
 		builder.upsertCommand("build-teams", "Build your teams random generated")
 				.addOption(OptionType.INTEGER, "teams", "The number of teams", true)
 				.addOption(OptionType.BOOLEAN, "limit", "Sets a user limit per voice channel", true)
-				.addOption(OptionType.BOOLEAN, "create-channels", "Define if the users are dragged to the team channels", true)
-				.setDefaultEnabled(false).complete();
-		builder.upsertCommand("win", "Define the winner of a match")
-				.addOption(OptionType.INTEGER, "matchnumber", "The number of the match", true)
-				.addOption(OptionType.INTEGER, "teamnumber", "The number of the team who has won", true).complete();
-		builder.upsertCommand("cancel", "Cancel a match")
-				.addOption(OptionType.INTEGER, "matchnumber", "The number of the match", true).complete();
+				.addOption(OptionType.BOOLEAN, "create-channels",
+						"Define if the users are dragged to the team channels", true)
+				.complete();
 		builder.upsertCommand("stats", "Get the stats of each member")
 				.addOption(OptionType.MENTIONABLE, "member", "Optional search for specifc user", false).complete();
 		builder.upsertCommand("edit-team", "Switch two players between teams")
 				.addOption(OptionType.INTEGER, "matchnumber", "The number of the match", true)
 				.addOption(OptionType.MENTIONABLE, "player-one", "Player one to switch with", true)
 				.addOption(OptionType.MENTIONABLE, "player-two", "Player two to switch with", true).complete();
-//		builder.upsertCommand("leave-team", "Leave the team you are currently in")
-//				.addOption(OptionType.INTEGER, "matchnumber", "The number of the match you want to leave", true).complete();
 	}
 
 	public void deleteSlashCommand(JDA builder) {
