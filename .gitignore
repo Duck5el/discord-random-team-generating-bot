@@ -7,3 +7,6 @@ build
 # Ignore bin to get rid of the .class files
 bin
 
+.classpath
+.project
+org.eclipse.buildship.core.prefs
