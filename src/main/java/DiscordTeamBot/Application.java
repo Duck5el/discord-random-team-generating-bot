@@ -46,6 +46,8 @@ public class Application {
 				.addOption(OptionType.INTEGER, "matchnumber", "The number of the match", true)
 				.addOption(OptionType.MENTIONABLE, "player-one", "Player one to switch with", true)
 				.addOption(OptionType.MENTIONABLE, "player-two", "Player two to switch with", true).complete();
+		builder.upsertCommand("start-queue", "Create a queue")
+				.addOption(OptionType.INTEGER, "teams", "The number of teams", true).complete();
 	}
 
 	public void deleteSlashCommand(JDA builder) {

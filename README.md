@@ -10,7 +10,13 @@
 
 ## [What is this repo for](#what-is-this-repo-for)
 
-The "Discord Random Team Generating Bot" contains source code and a build file to run your own docker image for a quick start. The DiscordTeamBot is a small bot that can be used to create teams inside your Discord server. Every imaginable setup is possible (for example  1v1v1, 2v2, 2v1, 5v5v5, 3v3v2). The bot will always try to randomly generate balanced teams. So if there are 5 players and you want to build 2 teams, the created match is going to be 3v2. It is possible to build hundreds of teams if you are crazy enough. The bot also keeps stats of the players competing against each other. After one team stands out as a winner you can declare the winning team where every team member gets a point for winning (the same goes for the loser team by increasing the loss points).
+Introducing the "Discord Random Team Generating Bot" – a versatile solution tailored to streamline team creation within your Discord server. This comprehensive package not only includes the essential source code but also equips you with a preconfigured build file, facilitating the rapid deployment of your personalized Docker image.
+
+The DiscordTeamBot stands as a compact yet dynamic bot designed to revolutionize team formation in your community. It boasts a wide array of team configurations. With this bot, the possibilities are boundless. Regardless of your preferred team structure, the bot excels at harnessing the power of randomness to ensure balanced teams for each engagement.
+
+Introducing the New Queue Feature:
+
+Building upon its robust foundation, the DiscordTeamBot now introduces an innovative queue feature that promises to enhance the user experience. With the queue feature, players can express their interest in participating, marking their presence for upcoming matches.
 
 ---
 
@@ -18,15 +24,16 @@ The "Discord Random Team Generating Bot" contains source code and a build file t
 
 |command|description|
 |---|---|
+|start-queue|Start a queue|
 |build-team|Build your teams random generated|
 |edit-team|Switch two playes between teams|
 |win|Define the winner of a match|
 |cancel|Cancel a match|
 |stats|Get the stats of each member|
 
-![commands](./img/commands.png)
 ![example1](./img/example1.png)
 ![example2](./img/example2.png)
+![example3](./img/example3.png)
 
 ---
 

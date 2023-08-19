@@ -63,6 +63,9 @@ public class CommandListener extends ListenerAdapter {
 		if (slashEvent.getName().equals("edit-team")) {
 			editTeam(slashEvent, guild, textChannelId);
 		}
+		if (slashEvent.getName().equals("start-queue")) {
+			startQueue(slashEvent, guild, textChannelId);
+		}
 	}
 
 	@Override
@@ -93,6 +96,26 @@ public class CommandListener extends ListenerAdapter {
 			Modal modal = Modal.create("winnerPopup", "Define the winner").addActionRows(ActionRow.of(teamnumberInput))
 					.build();
 			buttonEvent.replyModal(modal).complete();
+		}
+		if (buttonEvent.getComponentId().equals("cancelMatch")) {
+			buttonEvent.reply("Canceling").complete();
+			buttonCancelQueue();
+		}
+		if (buttonEvent.getComponentId().equals("joinQueue")) {
+			buttonEvent.reply("Trying to join ...").complete();
+			buttonJoinQueue();
+		}
+		if (buttonEvent.getComponentId().equals("leaveQueue")) {
+			buttonEvent.reply("Leaving ...").complete();
+			buttonLeaveQueue();
+		}
+		if (buttonEvent.getComponentId().equals("startMatch")) {
+			buttonEvent.reply("Starting ...").complete();
+			startMatch();
+		}
+		if (buttonEvent.getComponentId().equals("getQueuedUsers")) {
+			buttonEvent.reply("Loading list ...").complete();
+			getQueuedUsers();
 		}
 
 	}
@@ -144,6 +167,142 @@ public class CommandListener extends ListenerAdapter {
 			return null;
 		}
 
+	}
+
+	// Method triggered by the command /start-queue
+	// Creates Buttons to join leave and start a queue
+	private void startQueue(SlashCommandInteractionEvent event, Guild guild, String textChannelId) {
+		try {
+			long matchNumber = System.currentTimeMillis();
+
+			List<Button> buttons = new ArrayList<>();
+
+			buttons.add(Button.primary("startMatch", "Start match"));
+			buttons.add(Button.primary("cancelMatch", "Cancel Queue"));
+			buttons.add(Button.primary("joinQueue", "Join Queue"));
+			buttons.add(Button.primary("leaveQueue", "Leave Queue"));
+			buttons.add(Button.primary("getQueuedUsers", "Get Queued Users"));
+
+			createQueue(matchNumber);
+
+			event.reply("Queue for match number: `" + matchNumber + "`\nBuilding: `"
+					+ event.getOption("teams").getAsString() + "` teams").addActionRow(buttons).complete();
+		} catch (Exception e) {
+			guild.getTextChannelById(textChannelId).sendMessage("`ERROR: " + e.getMessage() + "`").queue();
+		}
+	}
+
+	private void getQueuedUsers() {
+		try {
+			String matchNr = getMatchNumberFromMessage();
+			String queueFile = PATH + "q-" + getMatchNumberFromMessage() + "-" + guild.getId() + ".txt";
+			String[] userIds = new Reader().readFileAsString(queueFile).split("\n");
+			String userNames = "";
+			for (int i = 0; i < userIds.length; i++) {
+				userNames = userNames + guild.getMemberById(userIds[i]).getUser().getName() + "\n";
+			}
+			EmbedBuilder embed = createEmbedWithDefaults("Match `" + matchNr + "` queue");
+			Field users = new Field("Users", userNames, true);
+			embed.addField(users);
+			guild.getTextChannelById(textChannelId).sendMessageEmbeds(embed.build()).queue();
+		} catch (Exception e) {
+			guild.getTextChannelById(textChannelId).sendMessage("`ERROR: " + e.getMessage() + "`").queue();
+		}
+	}
+
+	private void createQueue(long matchNumber) {
+		try {
+			String queueFile = PATH + "q-" + matchNumber + "-" + guild.getId() + ".txt";
+			new Writer().writeToFile(queueFile, "");
+		} catch (Exception e) {
+			guild.getTextChannelById(textChannelId).sendMessage("`ERROR: " + e.getMessage() + "`").queue();
+		}
+	}
+
+	private void buttonJoinQueue() {
+		try {
+			String queueFile = PATH + "q-" + getMatchNumberFromMessage() + "-" + guild.getId() + ".txt";
+			if (new Reader().fileExists(queueFile)) {
+				String id = member.getUser().getId();
+				String members = new Reader().readFileAsString(queueFile);
+				if (members.contains(id)) {
+					guild.getTextChannelById(textChannelId)
+							.sendMessage(member.getUser().getAsMention() + " you are already in the queue!").queue();
+				} else {
+					members = members + id + "\n";
+					new Writer().writeToFile(queueFile, members);
+					guild.getTextChannelById(textChannelId)
+							.sendMessage(member.getUser().getAsMention() + " joined the queue").queue();
+				}
+			} else {
+				guild.getTextChannelById(textChannelId).sendMessage("`ERROR: Match not found. Reason: Canceled!`")
+						.queue();
+			}
+		} catch (Exception e) {
+			guild.getTextChannelById(textChannelId).sendMessage("`ERROR: " + e.getMessage() + "`").queue();
+		}
+	}
+
+	private void buttonLeaveQueue() {
+		try {
+			String queueFile = PATH + "q-" + getMatchNumberFromMessage() + "-" + guild.getId() + ".txt";
+			if (new Reader().fileExists(queueFile)) {
+				String id = member.getUser().getId();
+				String members = new Reader().readFileAsString(queueFile);
+				if (members.contains(id)) {
+					members = members.replace(id + "\n", "");
+					new Writer().writeToFile(queueFile, members);
+					guild.getTextChannelById(textChannelId)
+							.sendMessage(member.getUser().getAsMention() + " left the queue!").queue();
+				} else {
+					guild.getTextChannelById(textChannelId).sendMessage(
+							member.getUser().getAsMention() + " you cant leave the queue since you never joined!")
+							.queue();
+				}
+			} else {
+				guild.getTextChannelById(textChannelId).sendMessage("`ERROR: Match not found. Reason: Canceled!`")
+						.queue();
+			}
+		} catch (Exception e) {
+			guild.getTextChannelById(textChannelId).sendMessage("`ERROR: " + e.getMessage() + "`").queue();
+		}
+	}
+
+	private void startMatch() {
+		try {
+			String queueFile = PATH + "q-" + getMatchNumberFromMessage() + "-" + guild.getId() + ".txt";
+			if (new Reader().fileExists(queueFile)) {
+				buildTeams(null);
+			} else {
+				guild.getTextChannelById(textChannelId).sendMessage("`ERROR: Match not found. Reason: Canceled!`")
+						.queue();
+			}
+		} catch (Exception e) {
+			guild.getTextChannelById(textChannelId).sendMessage("`ERROR: " + e.getMessage() + "`").queue();
+		}
+	}
+
+	private void buttonCancelQueue() {
+		try {
+			String queueFile = PATH + "q-" + getMatchNumberFromMessage() + "-" + guild.getId() + ".txt";
+			new Reader().deleteFile(queueFile);
+		} catch (Exception e) {
+			guild.getTextChannelById(textChannelId).sendMessage("`ERROR: " + e.getMessage() + "`").queue();
+		}
+	}
+
+	private String getMatchNumberFromMessage() {
+		String message = buttonEvent.getMessage().getContentRaw();
+		message = message.split("\n")[0].replaceAll("[a-zA-Z]", "").replaceAll(" ", "").replaceAll(":", "")
+				.replaceAll("`", "");
+		return message;
+	}
+
+	private String getTeamsFromMessage() {
+		String message = buttonEvent.getMessage().getContentRaw();
+		message = message.split("\n")[1].replaceAll("[a-zA-Z]", "").replaceAll(" ", "").replaceAll(":", "")
+				.replaceAll("`", "");
+		return message;
 	}
 
 	// Method triggered by the command /edit-team
@@ -373,7 +532,9 @@ public class CommandListener extends ListenerAdapter {
 			for (String vc : vcs) {
 				List<Member> members = getShuffeledHumansInChannel(guild.getVoiceChannelById(vc));
 				for (int i = 0; i < members.size(); i++) {
-					moveMember(guild, members, i, guild.getVoiceChannelById(originalVoiceChannelId), textChannelId);
+					if (!originalVoiceChannelId.equals("0")) {
+						moveMember(guild, members, i, guild.getVoiceChannelById(originalVoiceChannelId), textChannelId);
+					}
 				}
 			}
 			deleteCreatedItems(guild, vcs, categoryId, textChannelId);
@@ -390,16 +551,29 @@ public class CommandListener extends ListenerAdapter {
 	// users into them.
 	private void buildTeams(VoiceChannel voiceChannel) {
 		try {
-			slashEvent.reply("Creating Teams for Members!").complete();
-			String originalVoiceCannelId = voiceChannel.getId();
-			List<Member> members = getShuffeledHumansInChannel(voiceChannel);
-			int teams = slashEvent.getOption("teams").getAsInt();
+			String originalVoiceCannelId = "0";
+			int teams = 0;
+			List<Member> members = new ArrayList<>();
+			long matchNumber = 0l;
+			boolean createChannels = true;
+			boolean limit = false;
+			if (voiceChannel != null) {
+				slashEvent.reply("Creating Teams for Members!").complete();
+				originalVoiceCannelId = voiceChannel.getId();
+				members = getShuffeledHumansInChannel(voiceChannel);
+				teams = slashEvent.getOption("teams").getAsInt();
+				matchNumber = System.currentTimeMillis();
+				createChannels = slashEvent.getOption("create-channels").getAsBoolean();
+				limit = slashEvent.getOption("limit").getAsBoolean();
+			} else {
+				members = getShuffeledHumansFromQueue();
+				teams = Integer.parseInt(getTeamsFromMessage());
+				matchNumber = Long.parseLong(getMatchNumberFromMessage());
+			}
 			int memberCount = members.size();
 			double memberPerTeamFloor = Math.floor(memberCount / teams);
 			double memberPerTeamCeiling = Math.ceil(memberCount / (teams + 0.0));
 			double memberLeft = memberCount % teams;
-			long matchNumber = System.currentTimeMillis();
-			boolean createChannels = slashEvent.getOption("create-channels").getAsBoolean();
 
 			List<String> createdVoiceChannels = new ArrayList<>();
 			List<List<String>> memberIds = new ArrayList<>();
@@ -418,7 +592,7 @@ public class CommandListener extends ListenerAdapter {
 				List<String> teamMember = new ArrayList<>();
 				VoiceChannel teamVoiceChannel = null;
 				if (createChannels) {
-					if (slashEvent.getOption("limit").getAsBoolean()) {
+					if (limit) {
 						teamVoiceChannel = guild.createVoiceChannel("Team" + (i + 1), category)
 								.setUserlimit((int) memberPerTeamCeiling).complete();
 						createdVoiceChannels.add(teamVoiceChannel.getId());
@@ -431,20 +605,23 @@ public class CommandListener extends ListenerAdapter {
 				if (memberLeft == 0) {
 					for (int j = 0; j < memberPerTeamFloor; j++) {
 						if (createChannels)
-							moveMember(guild, members, memberIndex, teamVoiceChannel, textChannelId);
+							if (!originalVoiceCannelId.equals("0"))
+								moveMember(guild, members, memberIndex, teamVoiceChannel, textChannelId);
 						teamMember.add(members.get(memberIndex).getId());
 						memberIndex++;
 					}
 				} else {
 					for (int j = 0; j < memberPerTeamFloor; j++) {
 						if (createChannels)
-							moveMember(guild, members, memberIndex, teamVoiceChannel, textChannelId);
+							if (!originalVoiceCannelId.equals("0"))
+								moveMember(guild, members, memberIndex, teamVoiceChannel, textChannelId);
 						teamMember.add(members.get(memberIndex).getId());
 						memberIndex++;
 					}
 					if (memberLeft != 0) {
 						if (createChannels)
-							moveMember(guild, members, memberIndex, teamVoiceChannel, textChannelId);
+							if (!originalVoiceCannelId.equals("0"))
+								moveMember(guild, members, memberIndex, teamVoiceChannel, textChannelId);
 						teamMember.add(members.get(memberIndex).getId());
 						memberIndex++;
 						memberLeft--;
@@ -457,8 +634,32 @@ public class CommandListener extends ListenerAdapter {
 			createVoicecallFile(guild, memberIds, createdVoiceChannels, matchNumber, textChannelId,
 					originalVoiceCannelId, categoryId);
 
+			if (originalVoiceCannelId.equals("0")) {
+				String queueFile = PATH + "q-" + getMatchNumberFromMessage() + "-" + guild.getId() + ".txt";
+				new Reader().deleteFile(queueFile);
+			}
+
 		} catch (Exception e) {
 			guild.getTextChannelById(textChannelId).sendMessage("`ERROR: " + e.getMessage() + "`").queue();
+		}
+	}
+
+	private List<Member> getShuffeledHumansFromQueue() {
+		try {
+			String queueFile = PATH + "q-" + getMatchNumberFromMessage() + "-" + guild.getId() + ".txt";
+			String[] membersArray = new Reader().readFileAsString(queueFile).split("\n");
+			List<Member> members = new ArrayList<>();
+			for (int i = 0; i < membersArray.length; i++) {
+				Member m = guild.getMemberById(membersArray[i]);
+				if (!m.getUser().isBot()) {
+					members.add(m);
+				}
+			}
+			Collections.shuffle(members);
+			return members;
+		} catch (Exception e) {
+			guild.getTextChannelById(textChannelId).sendMessage("`ERROR: " + e.getMessage() + "`").queue();
+			return null;
 		}
 	}
 
@@ -575,7 +776,7 @@ public class CommandListener extends ListenerAdapter {
 
 		embed.setTitle(title);
 		embed.setColor(Color.YELLOW);
-		embed.setAuthor("Bot by: Duck#4303");
+		embed.setAuthor("Bot by: ducksel_");
 
 		return embed;
 	}
