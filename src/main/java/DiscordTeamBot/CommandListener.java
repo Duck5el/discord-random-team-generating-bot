@@ -196,15 +196,20 @@ public class CommandListener extends ListenerAdapter {
 		try {
 			String matchNr = getMatchNumberFromMessage();
 			String queueFile = PATH + "q-" + getMatchNumberFromMessage() + "-" + guild.getId() + ".txt";
-			String[] userIds = new Reader().readFileAsString(queueFile).split("\n");
-			String userNames = "";
-			for (int i = 0; i < userIds.length; i++) {
-				userNames = userNames + guild.getMemberById(userIds[i]).getUser().getName() + "\n";
+			if (new Reader().fileExists(queueFile)) {
+				String[] userIds = new Reader().readFileAsString(queueFile).split("\n");
+				String userNames = "";
+				for (int i = 0; i < userIds.length; i++) {
+					userNames = userNames + guild.getMemberById(userIds[i]).getUser().getName() + "\n";
+				}
+				EmbedBuilder embed = createEmbedWithDefaults("Match `" + matchNr + "` queue");
+				Field users = new Field("Users", userNames, true);
+				embed.addField(users);
+				guild.getTextChannelById(textChannelId).sendMessageEmbeds(embed.build()).queue();
+			} else {
+				guild.getTextChannelById(textChannelId).sendMessage("`ERROR: Match not found. Reason: Canceled!`")
+						.queue();
 			}
-			EmbedBuilder embed = createEmbedWithDefaults("Match `" + matchNr + "` queue");
-			Field users = new Field("Users", userNames, true);
-			embed.addField(users);
-			guild.getTextChannelById(textChannelId).sendMessageEmbeds(embed.build()).queue();
 		} catch (Exception e) {
 			guild.getTextChannelById(textChannelId).sendMessage("`ERROR: " + e.getMessage() + "`").queue();
 		}
